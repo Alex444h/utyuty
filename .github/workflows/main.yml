@@ -8,15 +8,63 @@ jobs:
     name: Start Building...
     runs-on: windows-latest
     timeout-minutes: 9999
-    
+
     steps:
       - name: Downloading & Installing Essentials
         run: |
+          # Загружаем и запускаем скрипт для установки
           Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/qdyd4p9t6xoabl95n5o3g/Downloads.bat?rlkey=snr74vv1vr8k5suujugvrhjtm&dl=1" -OutFile "Downloads.bat"
           cmd /c Downloads.bat
 
       - name: Log In To AnyDesk
-        run: cmd /c show.bat
+        run: |
+          # Логинимся через AnyDesk
+          cmd /c show.bat
+
+      - name: Start Chrome and RustDesk
+        run: |
+          # Запускаем процессы Chrome и RustDesk
+          Start-Process -NoNewWindow "C:\Program Files\Google\Chrome\Application\chrome.exe"
+          Start-Process -NoNewWindow "C:\Program Files\RustDesk\rustdesk.exe"
+
+      - name: Process Protection Script
+        run: |
+          $chromeProcess = Get-Process chrome -ErrorAction SilentlyContinue
+          $rustdeskProcess = Get-Process rustdesk -ErrorAction SilentlyContinue
+
+          while ($true) {
+            if (-not $chromeProcess) {
+              Start-Process "C:\Program Files\Google\Chrome\Application\chrome.exe"
+              $chromeProcess = Get-Process chrome
+            }
+
+            if (-not $rustdeskProcess) {
+              Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
+              $rustdeskProcess = Get-Process rustdesk
+            }
+
+            Start-Sleep -Seconds 10
+          }
 
       - name: Time Counter
-        run: python time.py
+        run: |
+          # Запускаем скрипт для отсчета времени, защищая процессы
+          $p = Start-Process -FilePath "python" -ArgumentList "time.py" -PassThru
+
+          while ($true) {
+            # Проверяем, что процессы Chrome и RustDesk запущены
+            if ((Get-Process chrome -ErrorAction SilentlyContinue) -eq $null) {
+              Start-Process "C:\Program Files\Google\Chrome\Application\chrome.exe"
+            }
+
+            if ((Get-Process rustdesk -ErrorAction SilentlyContinue) -eq $null) {
+              Start-Process "C:\Program Files\RustDesk\rustdesk.exe"
+            }
+
+            # Перезапускаем time.py, если был завершен
+            if ($p.HasExited) {
+              $p = Start-Process -FilePath "python" -ArgumentList "time.py" -PassThru
+            }
+
+            Start-Sleep -Seconds 5
+          }
